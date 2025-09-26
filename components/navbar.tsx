@@ -1,14 +1,16 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { LogOut, ChartBar as BarChart3, FolderOpen, Calendar } from "lucide-react"
+import { LogOut, ChartBar as BarChart3, FolderOpen, Calendar, Menu, X } from "lucide-react"
 
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -26,10 +28,10 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center space-x-8">
             <Link href="/dashboard" className="flex items-center space-x-2">
-              <FolderOpen className="h-6 w-6" />
-              <span className="font-bold text-xl">ProjectTracker</span>
+              <FolderOpen className="h-5 w-5 sm:h-6 sm:w-6" />
+              <span className="font-bold text-lg sm:text-xl">ProjectTracker</span>
             </Link>
-            
+
             <div className="hidden md:flex space-x-4">
               {navItems.map((item) => {
                 const Icon = item.icon
@@ -51,14 +53,68 @@ export function Navbar() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <ThemeToggle />
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              className="hidden sm:inline-flex"
+            >
               <LogOut className="h-4 w-4" />
               <span className="sr-only">Logout</span>
             </Button>
+
+            {/* Mobile menu button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
+              <span className="sr-only">Toggle menu</span>
+            </Button>
           </div>
         </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t pb-3 pt-2">
+            <div className="space-y-1">
+              {navItems.map((item) => {
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                      pathname === item.href
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              })}
+              <Button
+                variant="ghost"
+                className="w-full justify-start px-3 py-2 text-base font-medium"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-5 w-5 mr-2" />
+                Logout
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   )

@@ -208,21 +208,21 @@ export default function DashboardPage() {
               size="sm"
               onClick={() => setViewMode('grid')}
             >
-              <Grid className="h-4 w-4 mr-2" />
-              Grid
+              <Grid className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Grid</span>
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setViewMode('list')}
             >
-              <List className="h-4 w-4 mr-2" />
-              List
+              <List className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">List</span>
             </Button>
           </div>
-          
+
           <Select value={filterBy} onValueChange={(value: any) => setFilterBy(value)}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue />
             </SelectTrigger>

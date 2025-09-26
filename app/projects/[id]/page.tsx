@@ -204,15 +204,15 @@ export default function ProjectDetailPage() {
           </Button>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           {/* Project Info */}
           <div className="lg:w-1/3">
-            <Card className="sticky top-8">
+            <Card className="lg:sticky lg:top-8">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-2xl">{project.name}</CardTitle>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <CardTitle className="text-xl sm:text-2xl">{project.name}</CardTitle>
                   {project.completed && (
-                    <Badge className="bg-green-100 text-green-800">
+                    <Badge className="bg-green-100 text-green-800 w-fit">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Completed
                     </Badge>
@@ -328,7 +328,7 @@ export default function ProjectDetailPage() {
               </Dialog>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 lg:gap-4">
               {DAYS.map((day, dayIndex) => {
                 const dayTasks = getTasksForDay(dayIndex)
                 const completedTasks = dayTasks.filter(t => t.completed).length
@@ -372,7 +372,7 @@ export default function ProjectDetailPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => deleteTask(task.id)}
-                              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:text-destructive"
+                              className="h-6 w-6 p-0 hover:text-destructive"
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
