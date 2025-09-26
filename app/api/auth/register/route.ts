@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Generate token
-    const token = generateToken({ id: user.id, email: user.email })
+    const token = await generateToken({ id: user.id, email: user.email })
 
     // Create response with cookie
     const response = NextResponse.json(

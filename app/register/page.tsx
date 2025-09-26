@@ -49,7 +49,10 @@ export default function RegisterPage() {
       })
 
       if (response.ok) {
-        router.push("/dashboard")
+        // Add a small delay to ensure cookie is set
+        setTimeout(() => {
+          window.location.href = "/dashboard"
+        }, 100)
       } else {
         const data = await response.json()
         setError(data.error || "Registration failed")

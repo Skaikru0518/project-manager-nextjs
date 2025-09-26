@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { verifyToken } from './lib/auth'
+import { verifyTokenEdge } from './lib/auth-edge'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public routes that don't require authentication
   const publicRoutes = ['/', '/login', '/register']
-  
+
   if (publicRoutes.includes(pathname)) {
     return NextResponse.next()
   }
@@ -15,7 +15,13 @@ export function middleware(request: NextRequest) {
   // Check for authentication token
   const token = request.cookies.get('token')?.value
 
-  if (!token || !verifyToken(token)) {
+  if (!token) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  const verified = await verifyTokenEdge(token)
+
+  if (!verified) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

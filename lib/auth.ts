@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken'
+import * as jose from 'jose'
 import bcrypt from 'bcryptjs'
 import { NextRequest } from 'next/server'
 import { prisma } from './prisma'
@@ -18,14 +18,24 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash)
 }
 
-export function generateToken(user: User): string {
-  return jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' })
+export async function generateToken(user: User): Promise<string> {
+  const secret = new TextEncoder().encode(JWT_SECRET)
+  const token = await new jose.SignJWT({ id: user.id, email: user.email })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('7d')
+    .sign(secret)
+  return token
 }
 
-export function verifyToken(token: string): User | null {
+export async function verifyToken(token: string): Promise<User | null> {
   try {
-    return jwt.verify(token, JWT_SECRET) as User
-  } catch {
+    const secret = new TextEncoder().encode(JWT_SECRET)
+    const { payload } = await jose.jwtVerify(token, secret)
+    return {
+      id: payload.id as string,
+      email: payload.email as string
+    }
+  } catch (error) {
     return null
   }
 }
@@ -34,7 +44,7 @@ export async function getUserFromRequest(request: NextRequest): Promise<User | n
   const token = request.cookies.get('token')?.value
   if (!token) return null
 
-  const user = verifyToken(token)
+  const user = await verifyToken(token)
   if (!user) return null
 
   // Verify user still exists in database
