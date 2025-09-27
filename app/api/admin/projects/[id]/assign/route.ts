@@ -26,7 +26,7 @@ export async function PATCH(
       where: { id: params.id },
       data: { userId },
       include: {
-        user: {
+        owner: {
           select: {
             email: true
           }
