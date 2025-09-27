@@ -12,11 +12,14 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify project belongs to user
+    // Verify user has access to project (owner or member)
     const project = await prisma.project.findFirst({
       where: {
         id: params.id,
-        userId: user.id
+        OR: [
+          { userId: user.id },
+          { members: { some: { userId: user.id } } }
+        ]
       }
     })
 
@@ -68,11 +71,14 @@ export async function POST(
       )
     }
 
-    // Verify project belongs to user
+    // Verify user has access to project (owner or member)
     const project = await prisma.project.findFirst({
       where: {
         id: params.id,
-        userId: user.id
+        OR: [
+          { userId: user.id },
+          { members: { some: { userId: user.id } } }
+        ]
       }
     })
 

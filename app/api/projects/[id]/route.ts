@@ -12,17 +12,36 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const project = await prisma.project.findFirst({
-      where: {
-        id: params.id,
-        userId: user.id
-      },
+    const project = await prisma.project.findUnique({
+      where: { id: params.id },
       include: {
         tasks: {
           orderBy: [
             { dayOfWeek: 'asc' },
             { createdAt: 'asc' }
           ]
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                email: true
+              }
+            }
+          }
+        },
+        userFinances: {
+          where: {
+            userId: user.id,
+            type: 'BONUS'
+          },
+          select: {
+            id: true,
+            type: true,
+            amount: true,
+            category: true,
+            description: true
+          }
         }
       }
     })
@@ -31,7 +50,17 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    return NextResponse.json(project)
+    const isMember = project.members.some(m => m.userId === user.id)
+    if (project.userId !== user.id && !isMember) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const projectWithParsedTags = {
+      ...project,
+      tags: typeof project.tags === 'string' ? JSON.parse(project.tags) : project.tags
+    }
+
+    return NextResponse.json(projectWithParsedTags)
   } catch (error) {
     console.error('Error fetching project:', error)
     return NextResponse.json(
@@ -53,14 +82,15 @@ export async function PATCH(
 
     const { completed } = await request.json()
 
-    const project = await prisma.project.findFirst({
-      where: {
-        id: params.id,
-        userId: user.id
+    const project = await prisma.project.findUnique({
+      where: { id: params.id },
+      include: {
+        members: true
       }
     })
 
-    if (!project) {
+    const isMember = project?.members.some(m => m.userId === user.id)
+    if (!project || (project.userId !== user.id && !isMember)) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
@@ -73,7 +103,12 @@ export async function PATCH(
       include: { tasks: true }
     })
 
-    return NextResponse.json(updatedProject)
+    const projectWithParsedTags = {
+      ...updatedProject,
+      tags: typeof updatedProject.tags === 'string' ? JSON.parse(updatedProject.tags) : updatedProject.tags
+    }
+
+    return NextResponse.json(projectWithParsedTags)
   } catch (error) {
     console.error('Error updating project:', error)
     return NextResponse.json(
@@ -93,14 +128,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const project = await prisma.project.findFirst({
-      where: {
-        id: params.id,
-        userId: user.id
-      }
+    const project = await prisma.project.findUnique({
+      where: { id: params.id }
     })
 
-    if (!project) {
+    if (!project || project.userId !== user.id) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 

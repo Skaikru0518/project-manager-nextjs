@@ -26,11 +26,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate token
-    const token = await generateToken({ id: user.id, email: user.email })
+    const token = await generateToken({ id: user.id, email: user.email, role: user.role, level: user.level })
 
     // Create response with cookie
     const response = NextResponse.json(
-      { message: 'Login successful', user: { id: user.id, email: user.email } },
+      { message: 'Login successful', user: { id: user.id, email: user.email, role: user.role, level: user.level } },
       { status: 200 }
     )
 

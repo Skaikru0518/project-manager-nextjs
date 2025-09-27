@@ -12,13 +12,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Plus, Calendar, CircleCheck as CheckCircle, Clock, Tag, Trash2, CreditCard as Edit, ArrowLeft } from "lucide-react"
+import { Plus, Calendar, CircleCheck as CheckCircle, Clock, Tag, Trash2, CreditCard as Edit, ArrowLeft, ChevronLeft, ChevronRight, DollarSign } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
 
 interface Task {
   id: string
   title: string
   dayOfWeek: number
   completed: boolean
+  createdAt: string
+}
+
+interface UserFinance {
+  id: string
+  type: "SALARY" | "BONUS"
+  amount: number
+  category?: string
+  description?: string
 }
 
 interface Project {
@@ -30,6 +40,7 @@ interface Project {
   startDate: string
   endDate?: string
   tasks: Task[]
+  userFinances?: UserFinance[]
 }
 
 const DAYS = [
@@ -45,17 +56,27 @@ const DAYS = [
 export default function ProjectDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useAuth()
   const [project, setProject] = useState<Project | null>(null)
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false)
   const [selectedDay, setSelectedDay] = useState(0)
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [currentWeekOffset, setCurrentWeekOffset] = useState(0)
+  const [isFinanceDialogOpen, setIsFinanceDialogOpen] = useState(false)
+  const [financeRevenue, setFinanceRevenue] = useState("")
+  const [financeExpense, setFinanceExpense] = useState("")
+  const [displayRevenue, setDisplayRevenue] = useState(0)
+  const [displayExpense, setDisplayExpense] = useState(0)
 
   useEffect(() => {
     if (params.id) {
       fetchProject()
+      if (user?.role === 'ADMIN') {
+        fetchFinance()
+      }
     }
-  }, [params.id])
+  }, [params.id, user])
 
   const fetchProject = async () => {
     try {
@@ -146,8 +167,117 @@ export default function ProjectDetailPage() {
     }
   }
 
+  const formatNumberWithSpaces = (value: string) => {
+    const number = value.replace(/\s/g, "")
+    if (!number || isNaN(Number(number))) return ""
+    return Number(number).toLocaleString("hu-HU")
+  }
+
+  const parseNumberFromFormatted = (value: string) => {
+    return value.replace(/\s/g, "")
+  }
+
+  const fetchFinance = async () => {
+    try {
+      const response = await fetch(`/api/admin/projects/${params.id}/finance`)
+      if (response.ok) {
+        const data = await response.json()
+        setDisplayRevenue(data.revenue || 0)
+        setDisplayExpense(data.expense || 0)
+      }
+    } catch (error) {
+      console.error("Error fetching finance:", error)
+    }
+  }
+
+  const handleOpenFinance = async () => {
+    try {
+      const response = await fetch(`/api/admin/projects/${params.id}/finance`)
+      if (response.ok) {
+        const data = await response.json()
+        setFinanceRevenue(formatNumberWithSpaces(data.revenue?.toString() || "0"))
+        setFinanceExpense(formatNumberWithSpaces(data.expense?.toString() || "0"))
+      }
+    } catch (error) {
+      console.error("Error fetching finance:", error)
+      setFinanceRevenue("0")
+      setFinanceExpense("0")
+    }
+    setIsFinanceDialogOpen(true)
+  }
+
+  const handleUpdateFinance = async () => {
+    try {
+      const response = await fetch(
+        `/api/admin/projects/${params.id}/finance`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            revenue: parseFloat(parseNumberFromFormatted(financeRevenue)) || 0,
+            expense: parseFloat(parseNumberFromFormatted(financeExpense)) || 0,
+          }),
+        }
+      )
+
+      if (response.ok) {
+        setIsFinanceDialogOpen(false)
+        setFinanceRevenue("")
+        setFinanceExpense("")
+        fetchFinance()
+      }
+    } catch (error) {
+      console.error("Error updating finance:", error)
+    }
+  }
+
+  const handleRevenueChange = (value: string) => {
+    const cleaned = value.replace(/[^\d]/g, "")
+    setFinanceRevenue(formatNumberWithSpaces(cleaned))
+  }
+
+  const handleExpenseChange = (value: string) => {
+    const cleaned = value.replace(/[^\d]/g, "")
+    setFinanceExpense(formatNumberWithSpaces(cleaned))
+  }
+
   const getTasksForDay = (dayIndex: number) => {
-    return project?.tasks.filter(task => task.dayOfWeek === dayIndex) || []
+    if (!project) return []
+
+    const weekStart = getWeekStartDate()
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 7)
+
+    return project.tasks.filter(task => {
+      if (task.dayOfWeek !== dayIndex) return false
+
+      const taskDate = new Date(task.createdAt)
+      return taskDate >= weekStart && taskDate < weekEnd
+    })
+  }
+
+  const getCurrentWeekLabel = () => {
+    if (currentWeekOffset === 0) return 'This Week'
+    if (currentWeekOffset === -1) return 'Last Week'
+    if (currentWeekOffset === 1) return 'Next Week'
+    if (currentWeekOffset < 0) return `${Math.abs(currentWeekOffset)} Weeks Ago`
+    return `In ${currentWeekOffset} Weeks`
+  }
+
+  const getWeekStartDate = () => {
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const monday = new Date(now)
+    monday.setDate(now.getDate() + diff + (currentWeekOffset * 7))
+    return monday
+  }
+
+  const getDateForDay = (dayIndex: number) => {
+    const weekStart = getWeekStartDate()
+    const date = new Date(weekStart)
+    date.setDate(weekStart.getDate() + dayIndex)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   const getProgressPercentage = () => {
@@ -204,15 +334,15 @@ export default function ProjectDetailPage() {
           </Button>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-          {/* Project Info */}
-          <div className="lg:w-1/3">
-            <Card className="lg:sticky lg:top-8">
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <CardTitle className="text-xl sm:text-2xl">{project.name}</CardTitle>
+        {/* Project Info */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <CardTitle className="text-2xl sm:text-3xl">{project.name}</CardTitle>
                   {project.completed && (
-                    <Badge className="bg-green-100 text-green-800 w-fit">
+                    <Badge className="bg-green-100 text-green-800">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Completed
                     </Badge>
@@ -221,65 +351,179 @@ export default function ProjectDetailPage() {
                 {project.description && (
                   <p className="text-muted-foreground">{project.description}</p>
                 )}
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex flex-wrap gap-2">
+              </div>
+              <div className="flex gap-2">
+                {user?.role === 'ADMIN' && (
+                  <Button
+                    variant="outline"
+                    onClick={handleOpenFinance}
+                    className="w-full sm:w-auto"
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Manage Finances
+                  </Button>
+                )}
+                {!project.completed && (
+                  <Button
+                    onClick={completeProject}
+                    disabled={getProgressPercentage() < 100}
+                    className="w-full sm:w-auto"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Mark as Complete
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className={`grid grid-cols-1 ${
+              user?.role === 'ADMIN'
+                ? 'md:grid-cols-4'
+                : project.userFinances && project.userFinances.length > 0
+                  ? 'md:grid-cols-4'
+                  : 'md:grid-cols-3'
+            } gap-6`}>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">Progress</span>
+                  <span className="font-semibold">{getProgressPercentage()}%</span>
+                </div>
+                <Progress value={getProgressPercentage()} className="h-3" />
+                <div className="text-sm text-muted-foreground">
+                  {project.tasks.filter(t => t.completed).length} of {project.tasks.length} tasks completed
+                </div>
+              </div>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center">
+                  <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span>Started: {new Date(project.startDate).toLocaleDateString()}</span>
+                </div>
+                {project.endDate && (
+                  <>
+                    <div className="flex items-center">
+                      <CheckCircle className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span>Completed: {new Date(project.endDate).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span>Duration: {Math.ceil((new Date(project.endDate).getTime() - new Date(project.startDate).getTime()) / (1000 * 60 * 60 * 24))} days</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2 content-start">
                   {project.tags.map((tag, index) => (
-                    <Badge key={index} variant="outline">
+                    <Badge key={index} variant="outline" className="h-fit">
                       <Tag className="h-3 w-3 mr-1" />
                       {tag}
                     </Badge>
                   ))}
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span>Progress</span>
-                    <span>{getProgressPercentage()}%</span>
-                  </div>
-                  <Progress value={getProgressPercentage()} className="h-3" />
-                  <div className="text-sm text-muted-foreground">
-                    {project.tasks.filter(t => t.completed).length} of {project.tasks.length} tasks completed
-                  </div>
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Started: {new Date(project.startDate).toLocaleDateString()}
-                  </div>
-                  {project.endDate && (
-                    <div className="flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Completed: {new Date(project.endDate).toLocaleDateString()}
+                {project.userFinances && project.userFinances.length > 0 && (
+                  <div className="pt-3 border-t">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium">My Earnings</span>
                     </div>
-                  )}
-                  {project.endDate && (
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2" />
-                      Duration: {Math.ceil((new Date(project.endDate).getTime() - new Date(project.startDate).getTime()) / (1000 * 60 * 60 * 24))} days
+                    <div className="text-2xl font-bold text-green-600">
+                      {new Intl.NumberFormat("hu-HU", {
+                        style: "currency",
+                        currency: "HUF",
+                        minimumFractionDigits: 0,
+                      }).format(project.userFinances.reduce((sum, f) => sum + f.amount, 0))}
                     </div>
-                  )}
-                </div>
-
-                {!project.completed && (
-                  <Button 
-                    onClick={completeProject} 
-                    className="w-full"
-                    disabled={getProgressPercentage() < 100}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Mark as Complete
-                  </Button>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {project.userFinances.length} bonus{project.userFinances.length > 1 ? 'es' : ''}
+                    </div>
+                  </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
+              </div>
 
-          {/* Weekly Tasks */}
-          <div className="lg:w-2/3">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold">Weekly Tasks</h2>
+              {user?.role === 'ADMIN' && (
+                <div className="space-y-2 border-l pl-6">
+                  <div className="text-sm font-medium mb-3">Finances</div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Revenue:</span>
+                      <span className="font-semibold text-green-600">
+                        {new Intl.NumberFormat("hu-HU", {
+                          style: "currency",
+                          currency: "HUF",
+                          minimumFractionDigits: 0,
+                        }).format(displayRevenue)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Expense:</span>
+                      <span className="font-semibold text-red-600">
+                        {new Intl.NumberFormat("hu-HU", {
+                          style: "currency",
+                          currency: "HUF",
+                          minimumFractionDigits: 0,
+                        }).format(displayExpense)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t">
+                      <span className="font-medium">Profit:</span>
+                      <span className={`font-bold ${
+                        (displayRevenue - displayExpense) >= 0
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}>
+                        {new Intl.NumberFormat("hu-HU", {
+                          style: "currency",
+                          currency: "HUF",
+                          minimumFractionDigits: 0,
+                        }).format(displayRevenue - displayExpense)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Weekly Tasks */}
+        <div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <h2 className="text-2xl font-semibold">Weekly Tasks</h2>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentWeekOffset(prev => prev - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium min-w-[120px] text-center">
+                    {getCurrentWeekLabel()}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentWeekOffset(prev => prev + 1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  {currentWeekOffset !== 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCurrentWeekOffset(0)}
+                    >
+                      Today
+                    </Button>
+                  )}
+                </div>
+              </div>
               <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
                 <DialogTrigger asChild>
                   <Button>
@@ -328,24 +572,31 @@ export default function ProjectDetailPage() {
               </Dialog>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 lg:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4">
               {DAYS.map((day, dayIndex) => {
                 const dayTasks = getTasksForDay(dayIndex)
                 const completedTasks = dayTasks.filter(t => t.completed).length
-                
+
                 return (
-                  <Card key={dayIndex} className="h-fit">
+                  <Card key={dayIndex} className="flex flex-col h-full">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium">
-                        {day}
-                      </CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium">
+                          {day}
+                        </CardTitle>
+                        {currentWeekOffset !== 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            {getDateForDay(dayIndex)}
+                          </span>
+                        )}
+                      </div>
                       {dayTasks.length > 0 && (
                         <div className="text-xs text-muted-foreground">
                           {completedTasks}/{dayTasks.length} completed
                         </div>
                       )}
                     </CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent className="space-y-2 flex-1">
                       {dayTasks.length === 0 ? (
                         <div className="text-xs text-muted-foreground py-4 text-center">
                           No tasks
@@ -354,27 +605,27 @@ export default function ProjectDetailPage() {
                         dayTasks.map((task) => (
                           <div
                             key={task.id}
-                            className="flex items-start space-x-2 p-2 rounded border hover:bg-accent/50 transition-colors"
+                            className="group flex items-start gap-2 p-2 rounded border hover:bg-accent/50 transition-colors"
                           >
                             <Checkbox
                               checked={task.completed}
-                              onCheckedChange={(checked) => 
+                              onCheckedChange={(checked) =>
                                 toggleTask(task.id, checked as boolean)
                               }
-                              className="mt-0.5"
+                              className="mt-0.5 flex-shrink-0"
                             />
-                            <div className="flex-1 min-w-0">
-                              <span className={`text-sm ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                            <div className="flex-1 min-w-0 pr-1">
+                              <p className={`text-sm break-words ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
                                 {task.title}
-                              </span>
+                              </p>
                             </div>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => deleteTask(task.id)}
-                              className="h-6 w-6 p-0 hover:text-destructive"
+                              className="h-7 w-7 p-0 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         ))
@@ -384,9 +635,65 @@ export default function ProjectDetailPage() {
                 )
               })}
             </div>
-          </div>
         </div>
       </div>
+
+      <Dialog open={isFinanceDialogOpen} onOpenChange={setIsFinanceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manage Project Finances</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Project</Label>
+              <Input
+                value={project?.name || ""}
+                disabled
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Revenue (HUF)</Label>
+              <Input
+                type="text"
+                placeholder="0"
+                value={financeRevenue}
+                onChange={(e) => handleRevenueChange(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Expense (HUF)</Label>
+              <Input
+                type="text"
+                placeholder="0"
+                value={financeExpense}
+                onChange={(e) => handleExpenseChange(e.target.value)}
+              />
+            </div>
+            <div className="pt-2 border-t">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Profit:</span>
+                <span className={`text-lg font-bold ${
+                  (parseFloat(parseNumberFromFormatted(financeRevenue)) || 0) - (parseFloat(parseNumberFromFormatted(financeExpense)) || 0) >= 0
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}>
+                  {new Intl.NumberFormat("hu-HU", {
+                    style: "currency",
+                    currency: "HUF",
+                    minimumFractionDigits: 0,
+                  }).format((parseFloat(parseNumberFromFormatted(financeRevenue)) || 0) - (parseFloat(parseNumberFromFormatted(financeExpense)) || 0))}
+                </span>
+              </div>
+            </div>
+            <Button
+              onClick={handleUpdateFinance}
+              className="w-full"
+            >
+              Update Finances
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

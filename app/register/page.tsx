@@ -13,6 +13,7 @@ import { FolderOpen } from "lucide-react"
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     email: "",
+    name: "",
     password: "",
     confirmPassword: ""
   })
@@ -44,6 +45,7 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           email: formData.email,
+          name: formData.name,
           password: formData.password,
         }),
       })
@@ -86,6 +88,19 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Your full name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
                 }
                 required
               />

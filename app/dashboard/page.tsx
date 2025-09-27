@@ -12,7 +12,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Calendar, Grid2x2 as Grid, List, Filter } from "lucide-react"
+import { Plus, Calendar, Grid2x2 as Grid, List, Filter, ArrowRight, Clock } from "lucide-react"
+
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 interface Project {
   id: string
@@ -28,8 +30,17 @@ interface Project {
   }>
 }
 
+interface WeekTask {
+  id: string
+  title: string
+  dayOfWeek: number
+  projectId: string
+  projectName: string
+}
+
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([])
+  const [thisWeekTasks, setThisWeekTasks] = useState<WeekTask[]>([])
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid')
   const [filterBy, setFilterBy] = useState<'all' | 'active' | 'completed'>('all')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -42,6 +53,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchProjects()
+    fetchWeeklyTasks()
   }, [])
 
   const fetchProjects = async () => {
@@ -53,6 +65,18 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error fetching projects:', error)
+    }
+  }
+
+  const fetchWeeklyTasks = async () => {
+    try {
+      const response = await fetch(`/api/summary?year=${new Date().getFullYear()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setThisWeekTasks(data.thisWeekTasks || [])
+      }
+    } catch (error) {
+      console.error('Error fetching weekly tasks:', error)
     }
   }
 
@@ -233,6 +257,58 @@ export default function DashboardPage() {
             </SelectContent>
           </Select>
         </div>
+
+        <Card className="mb-8 border-2 border-primary/20">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-full">
+                  <Clock className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>This Week's Focus</CardTitle>
+                  <CardDescription>Pending tasks for today and tomorrow</CardDescription>
+                </div>
+              </div>
+              {thisWeekTasks.length > 0 && (
+                <Badge variant="secondary" className="text-lg px-3 py-1">
+                  {thisWeekTasks.length}
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {thisWeekTasks.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-lg font-medium mb-2">🎉 All clear!</p>
+                <p className="text-muted-foreground">
+                  No urgent tasks for today or tomorrow. Time to relax or plan ahead! ☕
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {thisWeekTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    onClick={() => router.push(`/projects/${task.projectId}`)}
+                    className="p-4 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors group"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <p className="font-medium text-sm line-clamp-2">{task.title}</p>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {DAYS[task.dayOfWeek]}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground truncate">{task.projectName}</p>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {filteredProjects.length === 0 ? (
           <Card className="text-center py-12">

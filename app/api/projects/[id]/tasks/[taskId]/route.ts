@@ -14,13 +14,16 @@ export async function PATCH(
 
     const { completed } = await request.json()
 
-    // Verify task belongs to user's project
+    // Verify user has access to task's project (owner or member)
     const task = await prisma.task.findFirst({
       where: {
         id: params.taskId,
         project: {
           id: params.id,
-          userId: user.id
+          OR: [
+            { userId: user.id },
+            { members: { some: { userId: user.id } } }
+          ]
         }
       }
     })
@@ -54,13 +57,16 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify task belongs to user's project
+    // Verify user has access to task's project (owner or member)
     const task = await prisma.task.findFirst({
       where: {
         id: params.taskId,
         project: {
           id: params.id,
-          userId: user.id
+          OR: [
+            { userId: user.id },
+            { members: { some: { userId: user.id } } }
+          ]
         }
       }
     })

@@ -10,12 +10,33 @@ export async function GET(request: NextRequest) {
     }
 
     const projects = await prisma.project.findMany({
-      where: { userId: user.id },
-      include: { tasks: true },
+      where: {
+        OR: [
+          { userId: user.id },
+          { members: { some: { userId: user.id } } }
+        ]
+      },
+      include: {
+        tasks: true,
+        members: {
+          include: {
+            user: {
+              select: {
+                email: true
+              }
+            }
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     })
 
-    return NextResponse.json(projects)
+    const projectsWithParsedTags = projects.map(project => ({
+      ...project,
+      tags: typeof project.tags === 'string' ? JSON.parse(project.tags) : project.tags
+    }))
+
+    return NextResponse.json(projectsWithParsedTags)
   } catch (error) {
     console.error('Error fetching projects:', error)
     return NextResponse.json(
