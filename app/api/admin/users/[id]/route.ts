@@ -4,7 +4,7 @@ import { getUserFromRequest } from '@/lib/auth'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -21,8 +21,10 @@ export async function PATCH(
       if (email !== undefined) updateData.email = email
       if (level !== undefined) updateData.level = level
 
+      const { id } = await params
+
       const updatedUser = await prisma.user.update({
-        where: { id: params.id },
+        where: { id },
         data: updateData
       })
 
@@ -49,7 +51,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -58,7 +60,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    if (user.id === params.id) {
+    const { id } = await params
+
+    if (user.id === id) {
       return NextResponse.json(
         { error: 'Cannot delete your own account' },
         { status: 400 }
@@ -66,7 +70,7 @@ export async function DELETE(
     }
 
     await prisma.user.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ message: 'User deleted successfully' })

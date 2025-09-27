@@ -4,7 +4,7 @@ import { getUserFromRequest } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -13,8 +13,10 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
+    const { id } = await params
+
     const finance = await prisma.projectFinance.findUnique({
-      where: { projectId: params.id }
+      where: { projectId: id }
     })
 
     if (!finance) {
@@ -33,7 +35,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -51,14 +53,16 @@ export async function PUT(
       )
     }
 
+    const { id } = await params
+
     const finance = await prisma.projectFinance.upsert({
-      where: { projectId: params.id },
+      where: { projectId: id },
       update: {
         revenue: parseFloat(revenue),
         expense: parseFloat(expense)
       },
       create: {
-        projectId: params.id,
+        projectId: id,
         revenue: parseFloat(revenue),
         expense: parseFloat(expense)
       }

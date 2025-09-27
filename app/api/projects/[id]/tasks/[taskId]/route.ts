@@ -4,7 +4,7 @@ import { getUserFromRequest } from '@/lib/auth'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -14,12 +14,14 @@ export async function PATCH(
 
     const { completed } = await request.json()
 
+    const { id, taskId } = await params
+
     // Verify user has access to task's project (owner or member)
     const task = await prisma.task.findFirst({
       where: {
-        id: params.taskId,
+        id: taskId,
         project: {
-          id: params.id,
+          id,
           OR: [
             { userId: user.id },
             { members: { some: { userId: user.id } } }
@@ -33,7 +35,7 @@ export async function PATCH(
     }
 
     const updatedTask = await prisma.task.update({
-      where: { id: params.taskId },
+      where: { id: taskId },
       data: { completed: completed ?? !task.completed }
     })
 
@@ -49,7 +51,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -57,12 +59,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id, taskId } = await params
+
     // Verify user has access to task's project (owner or member)
     const task = await prisma.task.findFirst({
       where: {
-        id: params.taskId,
+        id: taskId,
         project: {
-          id: params.id,
+          id,
           OR: [
             { userId: user.id },
             { members: { some: { userId: user.id } } }
@@ -76,7 +80,7 @@ export async function DELETE(
     }
 
     await prisma.task.delete({
-      where: { id: params.taskId }
+      where: { id: taskId }
     })
 
     return NextResponse.json({ message: 'Task deleted successfully' })

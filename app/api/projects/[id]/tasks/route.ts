@@ -4,7 +4,7 @@ import { getUserFromRequest } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -12,10 +12,12 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
+
     // Verify user has access to project (owner or member)
     const project = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id,
         OR: [
           { userId: user.id },
           { members: { some: { userId: user.id } } }
@@ -28,7 +30,7 @@ export async function GET(
     }
 
     const tasks = await prisma.task.findMany({
-      where: { projectId: params.id },
+      where: { projectId: id },
       orderBy: [
         { dayOfWeek: 'asc' },
         { createdAt: 'asc' }
@@ -47,7 +49,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -71,10 +73,12 @@ export async function POST(
       )
     }
 
+    const { id } = await params
+
     // Verify user has access to project (owner or member)
     const project = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id,
         OR: [
           { userId: user.id },
           { members: { some: { userId: user.id } } }
@@ -90,7 +94,7 @@ export async function POST(
       data: {
         title: title.trim(),
         dayOfWeek,
-        projectId: params.id
+        projectId: id
       }
     })
 

@@ -4,7 +4,7 @@ import { getUserFromRequest } from '@/lib/auth'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -22,10 +22,12 @@ export async function POST(
       )
     }
 
+    const { id } = await params
+
     const existingMember = await prisma.projectMember.findUnique({
       where: {
         projectId_userId: {
-          projectId: params.id,
+          projectId: id,
           userId
         }
       }
@@ -40,7 +42,7 @@ export async function POST(
 
     const member = await prisma.projectMember.create({
       data: {
-        projectId: params.id,
+        projectId: id,
         userId
       },
       include: {
@@ -64,7 +66,7 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -82,10 +84,12 @@ export async function DELETE(
       )
     }
 
+    const { id } = await params
+
     await prisma.projectMember.delete({
       where: {
         projectId_userId: {
-          projectId: params.id,
+          projectId: id,
           userId
         }
       }

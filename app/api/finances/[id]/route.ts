@@ -4,7 +4,7 @@ import { getUserFromRequest } from '@/lib/auth'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -13,8 +13,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
+    const { id } = await params
+
     const finance = await prisma.userFinance.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!finance) {
@@ -34,7 +36,7 @@ export async function PUT(
           type: 'SALARY',
           month: parseInt(month),
           year: parseInt(year),
-          id: { not: params.id }
+          id: { not: id }
         }
       })
 
@@ -47,7 +49,7 @@ export async function PUT(
     }
 
     const updatedFinance = await prisma.userFinance.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         type: type || finance.type,
         amount: amount !== undefined ? parseFloat(amount) : finance.amount,
@@ -79,7 +81,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request)
@@ -88,8 +90,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
+    const { id } = await params
+
     const finance = await prisma.userFinance.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!finance) {
@@ -101,7 +105,7 @@ export async function DELETE(
     }
 
     await prisma.userFinance.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ message: 'Finance deleted successfully' })
