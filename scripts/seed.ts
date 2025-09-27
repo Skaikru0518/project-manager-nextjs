@@ -195,7 +195,7 @@ async function main() {
       }
     }
 
-    for (const idx of memberIndices) {
+    for (const idx of Array.from(memberIndices)) {
       await prisma.projectMember.create({
         data: {
           projectId: project.id,

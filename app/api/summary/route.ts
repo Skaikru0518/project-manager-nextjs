@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
           tasks: {
             select: {
               id: true,
+              title: true,
               completed: true,
               createdAt: true,
               updatedAt: true,

@@ -8,6 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 export interface User {
   id: string
   email: string
+  name?: string
   role: 'ADMIN' | 'USER'
   level?: 'JUNIOR' | 'MEDIOR' | 'SENIOR'
 }
@@ -22,7 +23,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 export async function generateToken(user: User): Promise<string> {
   const secret = new TextEncoder().encode(JWT_SECRET)
-  const token = await new jose.SignJWT({ id: user.id, email: user.email, role: user.role, level: user.level })
+  const token = await new jose.SignJWT({ id: user.id, email: user.email, name: user.name, role: user.role, level: user.level })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('7d')
     .sign(secret)
@@ -36,6 +37,7 @@ export async function verifyToken(token: string): Promise<User | null> {
     return {
       id: payload.id as string,
       email: payload.email as string,
+      name: payload.name as string | undefined,
       role: payload.role as 'ADMIN' | 'USER',
       level: payload.level as 'JUNIOR' | 'MEDIOR' | 'SENIOR' | undefined
     }
@@ -56,5 +58,5 @@ export async function getUserFromRequest(request: NextRequest): Promise<User | n
     where: { id: user.id }
   })
 
-  return dbUser ? { id: dbUser.id, email: dbUser.email, role: dbUser.role, level: dbUser.level } : null
+  return dbUser ? { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: dbUser.role, level: dbUser.level } : null
 }
